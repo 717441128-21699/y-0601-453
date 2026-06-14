@@ -1,4 +1,4 @@
-import { SimulationTask, User, CaseProfile, ApprovalRecord, WarningRecord, DailyStats } from '../../shared/types';
+import { SimulationTask, User, CaseProfile, ApprovalRecord, WarningRecord, DailyStats, PausedVesselRecord, StentAdjustment } from '../../shared/types';
 
 const now = new Date();
 const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000).toISOString();
@@ -18,6 +18,19 @@ export const cases: CaseProfile[] = [
   { id: 'c4', patientName: '患者D', vesselType: '冠状动脉左回旋支', geometryFile: 'LCX_patientD.stl', createdAt: daysAgo(1) },
 ];
 
+export const pausedVessels: PausedVesselRecord[] = [
+  {
+    id: 'pv1',
+    vesselType: '冠状动脉左前降支',
+    triggerTaskId: 't6',
+    lowStressCount: 3,
+    pausedAt: hoursAgo(20),
+    status: 'pending',
+  },
+];
+
+export const stentAdjustments: StentAdjustment[] = [];
+
 export const tasks: SimulationTask[] = [
   {
     id: 't1',
@@ -27,6 +40,7 @@ export const tasks: SimulationTask[] = [
     status: 'completed',
     progress: 100,
     bloodParams: { viscosity: 3.5, density: 1060, flowRate: 85 },
+    geometryFile: { name: 'LAD_patientA.stl', sizeBytes: 2_450_000, format: 'stl', valid: true },
     createdAt: daysAgo(5),
     updatedAt: hoursAgo(26),
     stressThreshold: 1.5,
@@ -39,8 +53,8 @@ export const tasks: SimulationTask[] = [
     ],
     approvalStatus: 'level2_approved',
     approvals: [
-      { id: 'a1', taskId: 't1', level: 1, reviewer: '李研究员', result: 'approved', comment: '血流模拟结果可信，支架方案合理', createdAt: daysAgo(4) },
-      { id: 'a2', taskId: 't1', level: 2, reviewer: '王主任', result: 'approved', comment: '同意推荐方案，可推送手术规划', createdAt: daysAgo(3) },
+      { id: 'a1', taskId: 't1', level: 1, reviewer: '李研究员', reviewerRole: 'researcher', result: 'approved', comment: '血流模拟结果可信，支架方案合理', createdAt: daysAgo(4) },
+      { id: 'a2', taskId: 't1', level: 2, reviewer: '王主任', reviewerRole: 'doctor', result: 'approved', comment: '同意推荐方案，可推送手术规划', createdAt: daysAgo(3) },
     ],
   },
   {
@@ -51,6 +65,7 @@ export const tasks: SimulationTask[] = [
     status: 'computing',
     progress: 62,
     bloodParams: { viscosity: 4.0, density: 1065, flowRate: 92 },
+    geometryFile: { name: 'RCA_patientB.stl', sizeBytes: 3_120_000, format: 'stl', valid: true },
     createdAt: hoursAgo(8),
     updatedAt: hoursAgo(2),
     stressThreshold: 1.5,
@@ -65,6 +80,7 @@ export const tasks: SimulationTask[] = [
     status: 'optimizing',
     progress: 85,
     bloodParams: { viscosity: 3.8, density: 1058, flowRate: 120 },
+    geometryFile: { name: 'Carotid_patientC.stl', sizeBytes: 4_850_000, format: 'stl', valid: true },
     createdAt: hoursAgo(15),
     updatedAt: hoursAgo(4),
     stressThreshold: 1.2,
@@ -86,6 +102,7 @@ export const tasks: SimulationTask[] = [
     status: 'meshing',
     progress: 28,
     bloodParams: { viscosity: 3.2, density: 1055, flowRate: 78 },
+    geometryFile: { name: 'LCX_patientD.obj', sizeBytes: 1_980_000, format: 'obj', valid: true },
     createdAt: hoursAgo(3),
     updatedAt: hoursAgo(1),
     stressThreshold: 1.5,
@@ -99,11 +116,15 @@ export const tasks: SimulationTask[] = [
     status: 'pending',
     progress: 0,
     bloodParams: { viscosity: 3.6, density: 1062, flowRate: 88 },
+    geometryFile: { name: 'LAD_patientE.stl', sizeBytes: 2_800_000, format: 'stl', valid: true },
     createdAt: hoursAgo(0.5),
     updatedAt: hoursAgo(0.5),
     stressThreshold: 1.5,
     lowStressCount: 0,
-    vesselPaused: false,
+    vesselPaused: true,
+    validationErrors: [
+      { field: 'vesselType', message: '该血管(冠状动脉左前降支)已连续三次低应力区超标，新任务已自动暂停，需首席科学家介入', severity: 'error' },
+    ],
   },
   {
     id: 't6',
@@ -113,6 +134,7 @@ export const tasks: SimulationTask[] = [
     status: 'error',
     progress: 45,
     bloodParams: { viscosity: 3.7, density: 1063, flowRate: 90 },
+    geometryFile: { name: 'LAD_patientF.stl', sizeBytes: 2_650_000, format: 'stl', valid: true },
     createdAt: daysAgo(2),
     updatedAt: daysAgo(1),
     stressThreshold: 1.5,
@@ -125,6 +147,26 @@ export const tasks: SimulationTask[] = [
       severity: 'critical',
       message: '同血管(冠状动脉左前降支)连续三次低应力区超标，已暂停该血管新任务，需首席科学家介入',
     },
+  },
+  {
+    id: 't7',
+    caseName: 'INVALID-2026-007',
+    patientName: '患者G',
+    vesselType: '股动脉',
+    status: 'pending',
+    progress: 0,
+    bloodParams: { viscosity: 0.8, density: 800, flowRate: 2500 },
+    createdAt: hoursAgo(1.2),
+    updatedAt: hoursAgo(1.2),
+    stressThreshold: 5.0,
+    lowStressCount: 0,
+    validationErrors: [
+      { field: 'geometryFile', message: '未上传有效的血管几何文件', severity: 'error' },
+      { field: 'viscosity', message: '血液粘度 0.8 cP 超出合理范围(2.0-6.0 cP)', severity: 'error' },
+      { field: 'density', message: '血液密度 800 kg/m³ 超出合理范围(1030-1090 kg/m³)', severity: 'error' },
+      { field: 'flowRate', message: '入口流量 2500 mL/s 超出合理范围(10-300 mL/s)', severity: 'error' },
+      { field: 'stressThreshold', message: '应力阈值 5.0 Pa 超出合理范围(0.5-3.0 Pa)', severity: 'warning' },
+    ],
   },
 ];
 
@@ -147,4 +189,5 @@ export const vesselLowStressCount: Record<string, number> = {
   '冠状动脉右主干': 1,
   '颈动脉': 2,
   '冠状动脉左回旋支': 0,
+  '股动脉': 0,
 };

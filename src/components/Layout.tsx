@@ -1,6 +1,8 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Activity, LayoutDashboard, ListTodo, FileCheck, FolderKanban, HeartPulse, Bell, User, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { Activity, LayoutDashboard, ListTodo, FileCheck, FolderKanban, HeartPulse, Bell, User, ChevronRight, ChevronDown, ShieldAlert, Shield, Stethoscope, Cpu, Users } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { UserRole } from '../../shared/types';
 
 const navItems = [
   { path: '/dashboard', label: '数据看板', icon: LayoutDashboard },
@@ -9,10 +11,28 @@ const navItems = [
   { path: '/cases', label: '病例档案', icon: FolderKanban },
 ];
 
+const roleIcons: Record<UserRole, any> = {
+  engineer: Cpu,
+  researcher: Shield,
+  doctor: Stethoscope,
+  chief_scientist: ShieldAlert,
+};
+
+const roleLabels: Record<UserRole, string> = {
+  engineer: '临床工程师',
+  researcher: '生物力学研究员',
+  doctor: '主任医师',
+  chief_scientist: '首席科学家',
+};
+
 export default function Layout() {
   const location = useLocation();
-  const { currentUser, warnings, stats } = useAppStore();
+  const { currentUser, warnings, stats, permissions, pausedVessels, setRole, users } = useAppStore();
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const unreadWarnings = warnings.filter(w => !w.reviewResult).length;
+  const pendingPaused = pausedVessels.filter(p => p.status === 'pending').length;
+
+  const RoleIcon = roleIcons[currentUser.role];
 
   return (
     <div className="flex h-screen bg-space-deep overflow-hidden">
@@ -52,18 +72,50 @@ export default function Layout() {
         </nav>
 
         <div className="p-4 border-t border-medical-cyan/10">
-          <div className="glass-card rounded-xl p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-space-blue to-space-dark flex items-center justify-center border border-medical-cyan/20">
-              <User className="w-5 h-5 text-medical-cyan" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{currentUser.name}</p>
-              <p className="text-xs text-gray-400 truncate">
-                {currentUser.role === 'engineer' ? '临床工程师' :
-                 currentUser.role === 'researcher' ? '生物力学研究员' :
-                 currentUser.role === 'doctor' ? '主任医师' : '首席科学家'}
-              </p>
-            </div>
+          <div className="relative">
+            <button
+              onClick={() => setRoleMenuOpen(!roleMenuOpen)}
+              className="w-full glass-card rounded-xl p-3 flex items-center gap-3 hover:border-medical-cyan/30 transition"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-space-blue to-space-dark flex items-center justify-center border border-medical-cyan/20">
+                <RoleIcon className="w-5 h-5 text-medical-cyan" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium text-white truncate">{currentUser.name}</p>
+                <p className="text-xs text-medical-cyan truncate">{roleLabels[currentUser.role]}</p>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition ${roleMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {roleMenuOpen && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 glass-card rounded-xl p-1.5 z-50 border border-medical-cyan/20 shadow-card">
+                <p className="px-3 py-2 text-[10px] text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users className="w-3 h-3" /> 切换角色 (测试用)
+                </p>
+                {users.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => { setRole(u.role); setRoleMenuOpen(false); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition ${
+                      currentUser.role === u.role ? 'bg-medical-cyan/15 text-medical-cyan' : 'text-gray-300 hover:bg-white/5'
+                    }`}
+                  >
+                    {(() => {
+                      const RI = roleIcons[u.role];
+                      return <RI className="w-4 h-4" />;
+                    })()}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{u.name}</p>
+                      <p className="text-[10px] opacity-70">{roleLabels[u.role]}</p>
+                    </div>
+                    {currentUser.role === u.role && <CheckDot className="w-3.5 h-3.5 ml-auto" />}
+                  </button>
+                ))}
+                <div className="mt-1.5 pt-1.5 border-t border-gray-700/50 px-2 text-[10px] text-gray-500 leading-relaxed">
+                  工程师仅能复核预警 · 研究员负责一级审批 · 医生负责二级审批/推送手术 · 首席全权限含暂停血管处理
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -72,21 +124,31 @@ export default function Layout() {
         <header className="h-16 flex-shrink-0 border-b border-medical-cyan/10 glass-card flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
             <Activity className="w-5 h-5 text-medical-cyan animate-pulse" />
-            <span className="text-sm text-gray-300">系统运行正常 · 计算节点 <span className="text-medical-cyan font-mono">8/10</span> 在线</span>
+            <span className="text-sm text-gray-300">
+              系统运行正常 · 计算节点 <span className="text-medical-cyan font-mono">8/10</span> 在线
+            </span>
+            {permissions.canManagePausedVessels && pendingPaused > 0 && (
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-alert-red/15 text-alert-red text-xs font-medium border border-alert-red/30 animate-pulse">
+                <ShieldAlert className="w-3.5 h-3.5" />
+                暂停血管待处理 {pendingPaused}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-6">
-            <button className="relative p-2 rounded-lg hover:bg-white/5 transition">
-              <Bell className="w-5 h-5 text-gray-300" />
-              {unreadWarnings > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-alert-red text-white text-xs flex items-center justify-center shadow-glow-red">
-                  {unreadWarnings}
-                </span>
-              )}
-            </button>
+            <div className="relative">
+              <button className="relative p-2 rounded-lg hover:bg-white/5 transition">
+                <Bell className="w-5 h-5 text-gray-300" />
+                {(unreadWarnings > 0 || pendingPaused > 0) && (
+                  <span className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-alert-red text-white text-xs flex items-center justify-center shadow-glow-red">
+                    {unreadWarnings + pendingPaused}
+                  </span>
+                )}
+              </button>
+            </div>
             <div className="text-right">
               <p className="text-sm text-gray-300">今日统计</p>
               <p className="font-mono text-medical-cyan text-sm">
-                {stats?.todayTasks || 0} 任务 · {stats?.completionRate || 0}% 完成
+                {stats?.todayTasks || 0} 任务 · {stats?.completionRate || 0}% 完成 · 待审批 {stats?.pendingApprovals || 0}
               </p>
             </div>
           </div>
@@ -98,4 +160,8 @@ export default function Layout() {
       </main>
     </div>
   );
+}
+
+function CheckDot(_: any) {
+  return <span className="w-2 h-2 rounded-full bg-medical-cyan shadow-glow-cyan ml-auto" />;
 }

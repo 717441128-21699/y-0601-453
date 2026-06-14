@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock, Cpu, GitBranch, Loader2, Rocket, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Cpu, GitBranch, Loader2, Rocket, XCircle, RefreshCcw } from 'lucide-react';
 import { TaskStatus } from '../../shared/types';
 
 const stages: { key: TaskStatus; label: string; desc: string; Icon: any }[] = [
@@ -10,7 +10,7 @@ const stages: { key: TaskStatus; label: string; desc: string; Icon: any }[] = [
   { key: 'error', label: '异常', desc: '计算异常或复核不通过', Icon: XCircle },
 ];
 
-export default function StatusFlow({ status, progress }: { status: TaskStatus; progress: number }) {
+export default function StatusFlow({ status, progress, recomputeInProgress, recomputeProgress }: { status: TaskStatus; progress?: number; recomputeInProgress?: boolean; recomputeProgress?: number }) {
   const currentIdx = stages.findIndex(s => s.key === status);
 
   return (
@@ -29,13 +29,11 @@ export default function StatusFlow({ status, progress }: { status: TaskStatus; p
               <div key={stage.key} className="relative flex items-start gap-4">
                 <div className={`relative z-10 w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
                   isDone ? 'bg-medical-cyan/20 border-2 border-medical-cyan text-medical-cyan shadow-glow-cyan' :
-                  isCurrent ? 'bg-alert-orange/15 border-2 border-alert-orange text-alert-orange pulse-ring' :
+                  isCurrent ? 'bg-warning-amber/15 border-2 border-warning-amber text-warning-amber pulse-ring' :
                   isError ? 'bg-alert-red/15 border-2 border-alert-red text-alert-red' :
                   'bg-space-dark border border-gray-700 text-gray-600'
                 }`}>
-                  {isCurrent && stage.key === 'computing' ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : isCurrent ? (
+                  {isCurrent ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <Icon className="w-5 h-5" />
@@ -47,7 +45,7 @@ export default function StatusFlow({ status, progress }: { status: TaskStatus; p
                       {stage.label}
                     </p>
                     {isCurrent && (
-                      <span className="px-2 py-0.5 rounded-full bg-alert-orange/20 text-alert-orange text-[10px] font-medium animate-pulse">
+                      <span className="px-2 py-0.5 rounded-full bg-warning-amber/20 text-warning-amber text-[10px] font-medium animate-pulse">
                         进行中 {progress}%
                       </span>
                     )}
@@ -61,6 +59,25 @@ export default function StatusFlow({ status, progress }: { status: TaskStatus; p
               </div>
             );
           })}
+
+          {recomputeInProgress && (
+            <div className="relative flex items-start gap-4 mt-6 pt-5 border-t-2 border-dashed border-warning-amber/20">
+              <div className="relative z-10 w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-warning-amber/20 border-2 border-warning-amber text-warning-amber animate-pulse">
+                <RefreshCcw className="w-5 h-5 animate-spin" />
+              </div>
+              <div className="flex-1 pt-1.5">
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm text-warning-amber">支架重算</p>
+                  <span className="px-2 py-0.5 rounded-full bg-warning-amber/20 text-warning-amber text-[10px] font-medium">
+                    进行中 {recomputeProgress ?? 0}%
+                  </span>
+                </div>
+                <p className="text-xs mt-0.5 text-gray-400">
+                  参数调整后 CFD 重新求解，完成后将回到优化阶段
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
