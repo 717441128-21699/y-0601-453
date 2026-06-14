@@ -15,8 +15,8 @@ export default function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="tasks" element={<TaskList />} />
-          <Route path="tasks/:id" element={<TaskDetail />} />
-          <Route path="tasks/:id/report" element={<ReportView />} />
+          <Route path="task/:id" element={<TaskDetail />} />
+          <Route path="report/:id" element={<ReportView />} />
           <Route path="approvals" element={<ApprovalCenter />} />
           <Route path="cases" element={<CaseArchive />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

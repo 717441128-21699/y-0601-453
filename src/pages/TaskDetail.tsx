@@ -35,7 +35,7 @@ export default function TaskDetail() {
     </div>
   );
 
-  const warnings = task.warnings || [];
+  const warnings = task.warnings?.length ? task.warnings : (task.warning ? [task.warning] : []);
   const pendingWarning = warnings.find((w: any) => !w.reviewResult);
   const canReview = permissions.canReviewWarnings;
 
@@ -233,9 +233,25 @@ export default function TaskDetail() {
                 </div>
               </div>
             </div>
-          ) : task.stentAdjustments && task.stentAdjustments.length > 0 ? (
-            <div className="glass-card rounded-2xl p-4 border border-success-green/25 bg-success-green/5">
-              <p className="text-sm text-success-green flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> 所有预警均已处理，最近一次调整于 {task.stentAdjustments[task.stentAdjustments.length - 1].timestamp.slice(0, 19).replace('T', ' ')} 由 {task.stentAdjustments[task.stentAdjustments.length - 1].operator} 执行。</p>
+          ) : warnings.some((w: any) => w.reviewResult) ? (
+            <div className="glass-card rounded-2xl p-4 border border-medical-cyan/25 bg-medical-cyan/5">
+              <p className="text-sm text-medical-cyan flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 mt-0.5" />
+                <span>
+                  预警处理记录：共 {warnings.filter((w: any) => w.reviewResult).length} 条
+                  {warnings.find((w: any) => w.reviewResult === 'approve_adjust') && ` · 已批准调整 ${task.stentAdjustments?.length || 0} 次`}
+                  {warnings.find((w: any) => w.reviewResult === 'reject') && ' · 已驳回'}
+                  {' '}· 最近一次操作于 {warnings.filter((w: any) => w.reviewResult).slice(-1)[0].reviewedAt?.slice(0, 19).replace('T', ' ')} 由 {warnings.filter((w: any) => w.reviewResult).slice(-1)[0].reviewedBy} 执行
+                </span>
+              </p>
+              {warnings.some((w: any) => w.reviewResult === 'reject') && (
+                <div className="mt-3 p-3 rounded-lg bg-alert-red/5 border border-alert-red/15 text-alert-red/90 text-xs">
+                  <p className="font-semibold">⚠ 已驳回记录</p>
+                  {warnings.filter((w: any) => w.reviewResult === 'reject').map((w: any, i: number) => (
+                    <p key={i} className="mt-1">· {w.reviewedBy} 于 {w.reviewedAt?.slice(0, 19).replace('T', ' ')} 驳回，原预警：{w.message}</p>
+                  ))}
+                </div>
+              )}
             </div>
           ) : null}
         </div>

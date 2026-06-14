@@ -211,7 +211,7 @@ function CreateTaskModal({ onClose, onCreated, createTask, pausedVessels }: Crea
   const [result, setResult] = useState<SimulationTask | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const vesselPauseHint = pausedVessels.find(p => p.status === 'pending' && form.vesselType.includes(p.vesselType.replace(/^.+\s/, '')));
+  const vesselPauseHint = pausedVessels.find(p => p.status === 'pending' && p.vesselType === form.vesselType);
 
   const validateLocal = (f: typeof form, gf: GeometryFileInfo | null): ValidationFailure[] => {
     const errs: ValidationFailure[] = [];

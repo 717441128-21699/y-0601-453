@@ -188,6 +188,12 @@ router.post('/tasks/:id/review', (req, res) => {
   task.warning.reviewedBy = reviewer;
   task.warning.reviewedAt = new Date().toISOString();
   task.warning.reviewResult = reviewResult;
+  if (!task.warnings) task.warnings = [];
+  if (!task.warnings.find(w => w.id === task.warning!.id)) task.warnings.push(task.warning);
+  else {
+    const idx = task.warnings.findIndex(w => w.id === task.warning!.id);
+    if (idx >= 0) task.warnings[idx] = { ...task.warning };
+  }
 
   if (reviewResult === 'approve_adjust') {
     const before = { ...task.currentStentConfig! };
@@ -216,13 +222,18 @@ router.post('/tasks/:id/review', (req, res) => {
     if (_vesselLowStressCount[task.vesselType] >= 3) {
       const existing = _pausedVessels.find(p => p.vesselType === task.vesselType);
       if (!existing) {
+        const relatedIds = _tasks.filter(t => t.vesselType === task.vesselType).map(t => t.id);
         _pausedVessels.push({
           id: genId(),
           vesselType: task.vesselType,
           triggerTaskId: taskId,
           lowStressCount: _vesselLowStressCount[task.vesselType],
+          offenseCount: _vesselLowStressCount[task.vesselType],
           pausedAt: new Date().toISOString(),
+          suspendedAt: new Date().toISOString(),
           status: 'pending',
+          relatedTaskIds: relatedIds,
+          recommendedResolution: '建议对该血管段支架参数进行优化，使用长支架+扩张策略',
         });
         task.warning = {
           id: genId(),
@@ -313,7 +324,14 @@ function simulateTaskProgress(taskId: string) {
             type: 'low_stress',
             severity: 'warning',
             message: `检测到壁面剪切应力低于阈值 ${task.stressThreshold} Pa，请工程师复核`,
+            createdAt: new Date().toISOString(),
+            details: {
+              lowStressArea: +(5 + Math.random() * 15).toFixed(1),
+              minStress: +(0.3 + Math.random() * 0.5).toFixed(3),
+            },
           };
+          if (!task.warnings) task.warnings = [];
+          task.warnings.push(task.warning);
           clearInterval(interval);
         }
       }
@@ -402,12 +420,20 @@ router.post('/approvals/:taskId/push', (req, res) => {
   if (!task) return res.status(404).json({ error: 'Task not found' });
   if (task.approvalStatus !== 'level2_approved') return res.status(400).json({ error: '需完成二级审批后方可推送' });
   task.approvalStatus = 'pushed_to_surgery';
+  task.surgeryPushed = true;
+  task.surgeryPushedAt = new Date().toISOString();
   task.updatedAt = new Date().toISOString();
   res.json(task);
 });
 
 router.get('/paused-vessels', (_req, res) => {
-  res.json(_pausedVessels);
+  const list = _pausedVessels.map(p => ({
+    ...p,
+    offenseCount: p.offenseCount ?? p.lowStressCount ?? 3,
+    suspendedAt: p.suspendedAt ?? p.pausedAt,
+    relatedTaskIds: p.relatedTaskIds ?? _tasks.filter(t => t.vesselType === p.vesselType).map(t => t.id),
+  }));
+  res.json(list);
 });
 
 router.post('/paused-vessels/:id/resolve', (req, res) => {
@@ -478,10 +504,12 @@ router.get('/statistics/daily', (_req, res) => {
     todayTasks: todayTasks.length,
     completionRate,
     avgStress: +avgStress.toFixed(2),
+    avgWSSPa: +avgStress.toFixed(2),
     optimizationCount,
     pendingApprovals,
     activeWarnings,
     pausedVesselCount,
+    pushedToSurgeryCount: _tasks.filter(t => t.surgeryPushed || t.approvalStatus === 'pushed_to_surgery').length,
     trend,
   });
 });

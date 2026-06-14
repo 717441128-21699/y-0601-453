@@ -120,12 +120,15 @@ export default function ReportView() {
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-400">审核状态</p>
-            <p className={`text-sm font-medium mt-0.5 ${task.approvalStatus === 'level2_approved' || task.approvalStatus === 'pushed_to_surgery' ? 'text-medical-cyan' : 'text-alert-orange'}`}>
-              {task.approvalStatus === 'pending' ? '待一级审批' :
+            <p className={`text-sm font-medium mt-0.5 ${(task.surgeryPushed || task.approvalStatus === 'pushed_to_surgery') ? 'text-medical-cyan' : task.approvalStatus === 'level2_approved' ? 'text-medical-cyan' : 'text-alert-orange'}`}>
+              {task.surgeryPushed || task.approvalStatus === 'pushed_to_surgery' ? '✅ 已推送手术规划' :
+               task.approvalStatus === 'pending' || !task.approvalStatus ? '待一级审批' :
                task.approvalStatus === 'level1_approved' ? '待二级审批' :
-               task.approvalStatus === 'level2_approved' ? '二级审批通过' :
-               task.approvalStatus === 'pushed_to_surgery' ? '已推送手术规划' : '已驳回'}
+               task.approvalStatus === 'level2_approved' ? '二级审批通过' : '已驳回'}
             </p>
+            {(task.surgeryPushed || task.approvalStatus === 'pushed_to_surgery') && task.surgeryPushedAt && (
+              <p className="text-[10px] text-gray-500 font-mono mt-1">推送时间：{task.surgeryPushedAt.slice(0, 19).replace('T', ' ')}</p>
+            )}
           </div>
         </div>
 
